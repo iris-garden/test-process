@@ -28,12 +28,8 @@
 ## discourse (discuss.hail.is)
 
 ### migrate to github issues
-* manually close all posts that should not be migrated (there's no builtin
-  "resolved" feature on discourse, which is a great reason to migrate)
 * use [script](discourse_migration.py) to create a github issue for each
   remaining topic and post a link to it
 * create a pinned topic saying that we've migrated
 * [disable creation of new topics or posts](https://meta.discourse.org/t/shut-down-the-forum-turn-off-posting/89542/5)
-
-### open questions
-* at what point (if any) should we consider an unsolved topic too old to move?
+* after a month, shut down the board
