@@ -1,0 +1,37 @@
+name: Query Support Request
+description: Questions about how to use Hail Query or bugs that occur while using it.
+labels: query-support
+body:
+  - type: textarea
+    id: describe-issue
+    attributes:
+      label: Describe the issue.
+      description: What are you having trouble with?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What version of Hail are you using?
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Where are you running your code? (e.g. Mac, Linux, Dataproc)
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: Code
+      description: Please include any code you are running or a representative example.
+      render: python
+  - type: textarea
+    id: log
+    attributes:
+      label: Relevant log output
+      description: Please include any error messages you are encountering. If the output is too large to paste here, please put it in https://gist.github.com and provide the link.
+      render: shell

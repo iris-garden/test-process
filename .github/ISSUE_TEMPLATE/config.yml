@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Zulip chatroom
+    url: https://hail.zulipchat.com/
+    about: Chat with us about Hail development. This is the place to request new features.
