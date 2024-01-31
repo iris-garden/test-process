@@ -23,7 +23,7 @@
 
 ### open questions
 * `#github`: does anyone currently use this instead of normal github notifs?
-* `#hail variants`: what is this currently used for?
+* `#hail variants`: what is this currently used for? (update: time sensitive support, so this channel needs to stay)
 
 ## discourse (discuss.hail.is)
 
