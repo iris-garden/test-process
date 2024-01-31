@@ -20,6 +20,7 @@
 * `#cloud support`, `#discussposts`, `#devforumposts`, `#feature requests`,
   `#hail 0.1 support`, `#hail batch support`, `#hail query 0.2 support`
   * use labeled GitHub Issues instead
+* new channel: `#time sensitive support`
 
 ### open questions
 * `#github`: does anyone currently use this instead of normal github notifs?
