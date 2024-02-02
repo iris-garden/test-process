@@ -63,6 +63,8 @@ class DiscourseHTMLParser(HTMLParser):
         attr_str = " ".join([f'{key}="{value}"' for key, value in attrs])
         self.output_html += f"<{tag}{attr_str_prefix}{attr_str}{suffix}>"
 
+    # TODO the results for https://github.com/iris-garden/test-process/issues/177 are kinda wack (https://discuss.hail.is/t/ld-pruning-and-ibd/1986/4)
+    # TODO try https://discuss.hail.is/t/ukbiobank-research-analysis-platform-rap-matrixtable-write-issues/2256 specifically
     def _starttag_handler(suffix: str = "") -> None:
         def inner(
             self: "DiscourseHTMLParser", tag: str, attrs: List[Tuple[str, str]]
@@ -132,7 +134,7 @@ class DiscourseHTMLParser(HTMLParser):
     def handle_endtag(self: "DiscourseHTMLParser", tag: str) -> None:
         if (not self.aside) or self.aside_header:
             if tag == "a":
-                if self.aside_header:
+                if self.aside_header_link:
                     self.aside_header_link = False
                 if self.mention:
                     self.mention = False
