@@ -43,9 +43,6 @@ class DiscourseHTMLParser(HTMLParser):
         self.aside = False
         self.aside_src = None
         self.aside_header = False
-        self.aside_local_link = None
-        self.link_preview = False
-        self.link_preview_url = None
         # code blocks
         self.code_block_pre = False
         self.code_block_code = False
@@ -83,7 +80,7 @@ class DiscourseHTMLParser(HTMLParser):
                         self.output_html += f'<a href="{POST_LINK_ID}/{slug}">'
                     else:
                         self._write_starttag(attrs, tag, suffix)
-            elif not self.aside:
+            if not self.aside:
                 if tag == "aside":
                     self.aside = True
                     onebox_src = attr_dict.get("data-onebox-src", None)
@@ -98,7 +95,7 @@ class DiscourseHTMLParser(HTMLParser):
                         self.code_block_code = True
                 elif not self.aside:
                     self._write_starttag(attrs, tag, suffix)
-            elif self.aside and (tag == "header" or (tag == "div" and "title" in attr_dict.get("class", ""))):
+            elif self.aside and self.aside_src is None and (tag == "header" or (tag == "div" and "title" in attr_dict.get("class", ""))):
                 self.aside_header = True
                 self.output_html += "\n"
             elif self.aside_header and tag=="blockquote":
@@ -137,7 +134,7 @@ class DiscourseHTMLParser(HTMLParser):
                     self.relative_link = False
                 else:
                     self.output_html += "</a>"
-        elif not self.aside:
+        if not self.aside:
             if tag == "pre":
                 self.code_block_pre = False
             elif self.code_block_pre:
@@ -253,7 +250,7 @@ async def run_tasks(tasks):
         if len(tasks) > 5:
             result += await gather(*tasks[:4])
             tasks = tasks[4:]
-            await sleep(1 / 2)
+            await sleep(2)
         else:
             result += await gather(*tasks)
             tasks = []
