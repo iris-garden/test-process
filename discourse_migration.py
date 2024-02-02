@@ -43,6 +43,7 @@ class DiscourseHTMLParser(HTMLParser):
         self.aside = False
         self.aside_src = None
         self.aside_header = False
+        self.aside_header_link = False
         # code blocks
         self.code_block_pre = False
         self.code_block_code = False
@@ -69,6 +70,8 @@ class DiscourseHTMLParser(HTMLParser):
             attr_dict = dict(attrs)
             if (not self.aside) or self.aside_header:
                 if tag == "a":
+                    if self.aside_header:
+                        self.aside_header_link = True
                     link = attr_dict.get("href", "")
                     if "mention" in attr_dict.get("class", ""):
                         self.mention = True
@@ -93,8 +96,6 @@ class DiscourseHTMLParser(HTMLParser):
                     if tag == "code":
                         self.output_html += "\n\n```python\n"
                         self.code_block_code = True
-                elif not self.aside:
-                    self._write_starttag(attrs, tag, suffix)
             elif self.aside and self.aside_src is None and (tag == "header" or (tag == "div" and "title" in attr_dict.get("class", ""))):
                 self.aside_header = True
                 self.output_html += "\n"
@@ -104,6 +105,8 @@ class DiscourseHTMLParser(HTMLParser):
                 self._write_starttag(attrs, tag, suffix)
             elif self.aside_header and tag=="article":
                 self.aside_header = False
+            else:
+                self._write_starttag(attrs, tag, suffix)
 
         return inner
 
@@ -122,12 +125,15 @@ class DiscourseHTMLParser(HTMLParser):
             self.output_html += f'{data.partition("@")[2]}'
         elif self.aside_src is not None:
             self.output_html += self.aside_src
-        else:
+            self.aside_src = None
+        elif (not self.aside) or self.aside_header_link:
             self.output_html += data
 
     def handle_endtag(self: "DiscourseHTMLParser", tag: str) -> None:
         if (not self.aside) or self.aside_header:
             if tag == "a":
+                if self.aside_header:
+                    self.aside_header_link = False
                 if self.mention:
                     self.mention = False
                 elif self.relative_link:
@@ -141,13 +147,13 @@ class DiscourseHTMLParser(HTMLParser):
                 if tag == "code":
                     self.output_html += "\n```\n\n"
                     self.code_block_code = False
-            else:
-                self.output_html += f"</{tag}>"
         elif tag == "aside":
             self.aside = False
             if self.aside_src is not None:
                 self.output_html += "</a>\n"
                 self.aside_src = None
+        else:
+            self.output_html += f"</{tag}>"
 
     def handle_pi(self: "DiscourseHTMLParser", data: str) -> None:
         self.output_html += f"<?{data}>"
@@ -205,9 +211,9 @@ async def main(discourse_page: int, github_token: str) -> None:
         for idx, topic in enumerate(topics):
             links[topic.slug]["idx"] = idx
 
-        first_issue_id = (
+        first_issue_id = int((
             await run_tasks([create_issue(topics[0], session, github_token)])
-        )[0]["id"]
+        )[0]["number"])
 
         for src, data in links.items():
             if len(data["dests"]) != 0:
