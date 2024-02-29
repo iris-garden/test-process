@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 from bisect import insort
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from json import loads
 from html.parser import HTMLParser
 from typing import Any, Callable, Dict, List, Tuple, TypeVar
@@ -42,8 +42,10 @@ class DiscourseHTMLParser(HTMLParser):
         # link previews and quotes
         self.aside = False
         self.aside_src = None
+        self.aside_src_written = False
         self.aside_header = False
         self.aside_header_link = False
+        self.aside_header_link_written = False
         # code blocks
         self.code_block_pre = False
         self.code_block_code = False
@@ -63,29 +65,37 @@ class DiscourseHTMLParser(HTMLParser):
         attr_str = " ".join([f'{key}="{value}"' for key, value in attrs])
         self.output_html += f"<{tag}{attr_str_prefix}{attr_str}{suffix}>"
 
-    # TODO the results for https://github.com/iris-garden/test-process/issues/177 are kinda wack (https://discuss.hail.is/t/ld-pruning-and-ibd/1986/4)
-    # TODO try https://discuss.hail.is/t/ukbiobank-research-analysis-platform-rap-matrixtable-write-issues/2256 specifically
     def _starttag_handler(suffix: str = "") -> None:
         def inner(
             self: "DiscourseHTMLParser", tag: str, attrs: List[Tuple[str, str]]
         ) -> None:
             attr_dict = dict(attrs)
-            if (not self.aside) or self.aside_header:
-                if tag == "a":
-                    if self.aside_header:
-                        self.aside_header_link = True
-                    link = attr_dict.get("href", "")
-                    if "mention" in attr_dict.get("class", ""):
-                        self.mention = True
-                    elif link.startswith("/"):
-                        self.relative_link = True
-                    elif "https://discuss.hail.is/t/" in link:
-                        slug = link.removeprefix("https://discuss.hail.is/t/").split("/")[0]
-                        self.post_links.add(slug)
-                        self.output_html += f'<a href="{POST_LINK_ID}/{slug}">'
-                    else:
-                        self._write_starttag(attrs, tag, suffix)
-            if not self.aside:
+            if ((not self.aside) or self.aside_header) and tag == "a":
+                if self.aside_header and not self.aside_header_link_written:
+                    self.aside_header_link = True
+                link = attr_dict.get("href", "")
+                if "mention" in attr_dict.get("class", ""):
+                    self.mention = True
+                elif link.startswith("/"):
+                    self.relative_link = True
+                elif "https://discuss.hail.is/t/" in link:
+                    slug = link.removeprefix("https://discuss.hail.is/t/").split("/")[0]
+                    self.post_links.add(slug)
+                    self.output_html += f'<a href="{POST_LINK_ID}/{slug}">'
+                else:
+                    self._write_starttag(attrs, tag, suffix)
+            elif self.aside and self.aside_src is None and (tag == "header" or (tag == "div" and "title" in attr_dict.get("class", ""))):
+                self.aside_header = True
+                self.output_html += "\n"
+            elif self.aside_header and tag == "blockquote":
+                self.aside = False
+                self.aside_header = False
+                self.aside_header_link_written = False
+                self._write_starttag(attrs, tag, suffix)
+            elif self.aside_header and tag == "article":
+                self.aside_header = False
+                self.aside_header_link_written = False
+            elif not self.aside:
                 if tag == "aside":
                     self.aside = True
                     onebox_src = attr_dict.get("data-onebox-src", None)
@@ -98,17 +108,8 @@ class DiscourseHTMLParser(HTMLParser):
                     if tag == "code":
                         self.output_html += "\n\n```python\n"
                         self.code_block_code = True
-            elif self.aside and self.aside_src is None and (tag == "header" or (tag == "div" and "title" in attr_dict.get("class", ""))):
-                self.aside_header = True
-                self.output_html += "\n"
-            elif self.aside_header and tag=="blockquote":
-                self.aside_header = False
-                self.aside = False
-                self._write_starttag(attrs, tag, suffix)
-            elif self.aside_header and tag=="article":
-                self.aside_header = False
-            else:
-                self._write_starttag(attrs, tag, suffix)
+                else:
+                    self._write_starttag(attrs, tag, suffix)
 
         return inner
 
@@ -125,37 +126,39 @@ class DiscourseHTMLParser(HTMLParser):
     def handle_data(self: "DiscourseHTMLParser", data: str) -> None:
         if self.mention:
             self.output_html += f'{data.partition("@")[2]}'
-        elif self.aside_src is not None:
+        elif self.aside_src is not None and not self.aside_src_written:
             self.output_html += self.aside_src
-            self.aside_src = None
+            self.aside_src_written = True
         elif (not self.aside) or self.aside_header_link:
             self.output_html += data
 
     def handle_endtag(self: "DiscourseHTMLParser", tag: str) -> None:
-        if (not self.aside) or self.aside_header:
-            if tag == "a":
+        if ((not self.aside) or self.aside_header) and tag == "a":
+            if self.mention:
+                self.mention = False
+            elif self.relative_link:
+                self.relative_link = False
+            else:
                 if self.aside_header_link:
                     self.aside_header_link = False
-                if self.mention:
-                    self.mention = False
-                elif self.relative_link:
-                    self.relative_link = False
-                else:
-                    self.output_html += "</a>"
-        if not self.aside:
+                    self.aside_header_link_written = True
+                self.output_html += "</a>"
+        elif tag == "aside":
+            self.aside = False
+            if self.aside_src is not None:
+                self.output_html += "</a>\n"
+                self.aside_src = None
+                self.aside_src_written = False
+                self.aside_header_link_written = True
+        elif not self.aside:
             if tag == "pre":
                 self.code_block_pre = False
             elif self.code_block_pre:
                 if tag == "code":
                     self.output_html += "\n```\n\n"
                     self.code_block_code = False
-        elif tag == "aside":
-            self.aside = False
-            if self.aside_src is not None:
-                self.output_html += "</a>\n"
-                self.aside_src = None
-        else:
-            self.output_html += f"</{tag}>"
+            else:
+                self.output_html += f"</{tag}>"
 
     def handle_pi(self: "DiscourseHTMLParser", data: str) -> None:
         self.output_html += f"<?{data}>"
@@ -226,9 +229,13 @@ async def main(discourse_page: int, github_token: str) -> None:
                             f"broken link: {src}->{dest} (https://github.com/iris-garden/test-process/issues/{first_issue_id + data['idx']})"
                         )
                     else:
-                        topics[data["idx"]].html.replace(
-                            f"{POST_LINK_ID}/{dest}",
-                            f"https://github.com/iris-garden/test-process/issues/{first_issue_id + dest_data['idx']}",
+                        topic = topics[data["idx"]]
+                        topics[data["idx"]] = replace(
+                            topic,
+                            html=topic.html.replace(
+                                f"{POST_LINK_ID}/{dest}",
+                                f"https://github.com/iris-garden/test-process/issues/{first_issue_id + dest_data['idx']}",
+                            )
                         )
 
         await run_tasks(
