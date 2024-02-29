@@ -238,6 +238,7 @@ async def main(discourse_page: int, github_token: str) -> None:
                             )
                         )
 
+        # TODO split this into a download script and an upload script, save all to files, build up links as a separate step, upload in order one at a time
         await run_tasks(
             [create_issue(topic, session, github_token) for topic in topics[1:]]
         )
