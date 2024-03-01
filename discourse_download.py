@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from bisect import insort
 from dataclasses import dataclass, replace
-from json import loads
+from json import loads, dump
 from html.parser import HTMLParser
 from typing import Any, Callable, Dict, List, Tuple, TypeVar
 from aiohttp import ClientSession
@@ -189,59 +189,66 @@ async def main(discourse_page: int, github_token: str) -> None:
         for post in posts:
             topic_acc[post.topic_id]["posts"].append(post)
 
-        links = {}
+        # links = {}
         topics = []
         for topic_id, topic in topic_acc.items():
             if topic["fields"]["slug"] != "welcome-to-the-hail-community":
                 topic_html = ""
-                links[topic["fields"]["slug"]] = {"idx": -1, "dests": set()}
+                # links[topic["fields"]["slug"]] = {"idx": -1, "dests": set()}
                 for post in topic["posts"]:
                     parser = DiscourseHTMLParser()
                     parser.feed(post.html)
                     topic_html += (
                         f"<h2>{post.username} said:</h2>\n{parser.output_html}\n\n"
                     )
-                    links[topic["fields"]["slug"]]["dests"] |= parser.post_links
-                insort(
-                    topics,
-                    DiscourseTopic(
-                        topic["fields"]["id"],
-                        topic["fields"]["slug"],
-                        topic["fields"]["title"],
-                        topic_html,
-                    ),
-                    key=lambda topic: topic.id,
-                )
+                    # links[topic["fields"]["slug"]]["dests"] |= parser.post_links
+                with open(f'./discourse-export/{topic["fields"]["id"]}_{topic["fields"]["slug"]}.json', 'w') as file:
+                    dump({
+                        "id": topic["fields"]["id"],
+                        "slug": topic["fields"]["slug"],
+                        "title": topic["fields"]["title"],
+                        "html": topic_html,
+                    }, file)
+                # insort(
+                #     topics,
+                #     DiscourseTopic(
+                #         topic["fields"]["id"],
+                #         topic["fields"]["slug"],
+                #         topic["fields"]["title"],
+                #         topic_html,
+                #     ),
+                #     key=lambda topic: topic.id,
+                # )
 
-        for idx, topic in enumerate(topics):
-            links[topic.slug]["idx"] = idx
+        # for idx, topic in enumerate(topics):
+            # links[topic.slug]["idx"] = idx
 
-        first_issue_id = int((
-            await run_tasks([create_issue(topics[0], session, github_token)])
-        )[0]["number"])
+        # first_issue_id = int((
+        #     await run_tasks([create_issue(topics[0], session, github_token)])
+        # )[0]["number"])
 
-        for src, data in links.items():
-            if len(data["dests"]) != 0:
-                for dest in data["dests"]:
-                    dest_data = links.get(dest, None)
-                    if dest_data is None:
-                        print(
-                            f"broken link: {src}->{dest} (https://github.com/iris-garden/test-process/issues/{first_issue_id + data['idx']})"
-                        )
-                    else:
-                        topic = topics[data["idx"]]
-                        topics[data["idx"]] = replace(
-                            topic,
-                            html=topic.html.replace(
-                                f"{POST_LINK_ID}/{dest}",
-                                f"https://github.com/iris-garden/test-process/issues/{first_issue_id + dest_data['idx']}",
-                            )
-                        )
+        # for src, data in links.items():
+        #     if len(data["dests"]) != 0:
+        #         for dest in data["dests"]:
+        #             dest_data = links.get(dest, None)
+        #             if dest_data is None:
+        #                 print(
+        #                     f"broken link: {src}->{dest} (https://github.com/iris-garden/test-process/issues/{first_issue_id + data['idx']})"
+        #                 )
+        #             else:
+        #                 topic = topics[data["idx"]]
+        #                 topics[data["idx"]] = replace(
+        #                     topic,
+        #                     html=topic.html.replace(
+        #                         f"{POST_LINK_ID}/{dest}",
+        #                         f"https://github.com/iris-garden/test-process/issues/{first_issue_id + dest_data['idx']}",
+        #                     )
+        #                 )
 
         # TODO split this into a download script and an upload script, save all to files, build up links as a separate step, upload in order one at a time
-        await run_tasks(
-            [create_issue(topic, session, github_token) for topic in topics[1:]]
-        )
+        # await run_tasks(
+        #     [create_issue(topic, session, github_token) for topic in topics[1:]]
+        # )
 
 
 async def create_issue(
