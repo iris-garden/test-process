@@ -168,7 +168,8 @@ class DiscourseHTMLParser(HTMLParser):
 async def main(discourse_page: int, github_token: str) -> None:
     async with ClientSession() as session:
         pages = await run_tasks(
-            [parse_page(page, session) for page in range(discourse_page + 1)]
+            [parse_page(discourse_page, session)]
+            # [parse_page(page, session) for page in range(discourse_page + 1)]
         )
         topics = await run_tasks(
             [
@@ -189,82 +190,23 @@ async def main(discourse_page: int, github_token: str) -> None:
         for post in posts:
             topic_acc[post.topic_id]["posts"].append(post)
 
-        # links = {}
         topics = []
         for topic_id, topic in topic_acc.items():
             if topic["fields"]["slug"] != "welcome-to-the-hail-community":
                 topic_html = ""
-                # links[topic["fields"]["slug"]] = {"idx": -1, "dests": set()}
                 for post in topic["posts"]:
                     parser = DiscourseHTMLParser()
                     parser.feed(post.html)
                     topic_html += (
                         f"<h2>{post.username} said:</h2>\n{parser.output_html}\n\n"
                     )
-                    # links[topic["fields"]["slug"]]["dests"] |= parser.post_links
-                with open(f'./discourse-export/{topic["fields"]["id"]}_{topic["fields"]["slug"]}.json', 'w') as file:
+                with open(f'./discourse-export/{topic["fields"]["id"]:04}_{topic["fields"]["slug"]}.json', 'w') as file:
                     dump({
                         "id": topic["fields"]["id"],
                         "slug": topic["fields"]["slug"],
                         "title": topic["fields"]["title"],
                         "html": topic_html,
                     }, file)
-                # insort(
-                #     topics,
-                #     DiscourseTopic(
-                #         topic["fields"]["id"],
-                #         topic["fields"]["slug"],
-                #         topic["fields"]["title"],
-                #         topic_html,
-                #     ),
-                #     key=lambda topic: topic.id,
-                # )
-
-        # for idx, topic in enumerate(topics):
-            # links[topic.slug]["idx"] = idx
-
-        # first_issue_id = int((
-        #     await run_tasks([create_issue(topics[0], session, github_token)])
-        # )[0]["number"])
-
-        # for src, data in links.items():
-        #     if len(data["dests"]) != 0:
-        #         for dest in data["dests"]:
-        #             dest_data = links.get(dest, None)
-        #             if dest_data is None:
-        #                 print(
-        #                     f"broken link: {src}->{dest} (https://github.com/iris-garden/test-process/issues/{first_issue_id + data['idx']})"
-        #                 )
-        #             else:
-        #                 topic = topics[data["idx"]]
-        #                 topics[data["idx"]] = replace(
-        #                     topic,
-        #                     html=topic.html.replace(
-        #                         f"{POST_LINK_ID}/{dest}",
-        #                         f"https://github.com/iris-garden/test-process/issues/{first_issue_id + dest_data['idx']}",
-        #                     )
-        #                 )
-
-        # TODO split this into a download script and an upload script, save all to files, build up links as a separate step, upload in order one at a time
-        # await run_tasks(
-        #     [create_issue(topic, session, github_token) for topic in topics[1:]]
-        # )
-
-
-async def create_issue(
-    topic: DiscourseTopic, session: ClientSession, github_token: str
-) -> str:
-    async with session.post(
-        "https://api.github.com/repos/iris-garden/test-process/issues",
-        json={"title": topic.title, "body": topic.html, "labels": ["discourse-old"]},
-        headers={
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {github_token}",
-            "Content-Type": "application/json; charset=utf-8",
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-    ) as response:
-        return loads(await response.read())
 
 
 async def run_tasks(tasks):
