@@ -165,7 +165,7 @@ class DiscourseHTMLParser(HTMLParser):
 
 
 # main script
-async def main(discourse_page: int, github_token: str) -> None:
+async def main(discourse_page: int) -> None:
     async with ClientSession() as session:
         pages = await run_tasks(
             [parse_page(discourse_page, session)]
@@ -248,6 +248,5 @@ async def parse_post(post_id: int, session: ClientSession) -> None:
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--page")
-    parser.add_argument("--github_token")
     args = parser.parse_args()
-    run(main(int(args.page), args.github_token))
+    run(main(int(args.page)))
