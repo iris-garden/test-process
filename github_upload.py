@@ -15,7 +15,7 @@ POST_LINK_ID = "f4706281-cc60-4ff0-a0b6-b803683cc24b"
 
 async def main(github_issue_number: int, github_token: str) -> None:
     links = {}
-    for idx, filename in enumerate(listdir("./discourse-export")):
+    for idx, filename in enumerate(sorted(listdir("./discourse-export"))):
         if isfile(join("./discourse-export", filename)):
             id, rest = filename.split("_")
             slug, _ = rest.split(".")
@@ -27,45 +27,36 @@ async def main(github_issue_number: int, github_token: str) -> None:
             if dest_data is None:
                 print(f"broken link: {slug}->{dest} (https://github.com/iris-garden/test-process/issues/{github_issue_number + data['idx']})")
             else:
-                print(f"{data['id']}_{slug}.json")
                 with open(f"./discourse-export/{data['id']}_{slug}.json", "r") as file:
                     json = sub(f'{POST_LINK_ID}/(.*?)"', f"https://github.com/iris-garden/test-process/issues/{github_issue_number + dest_data['idx']}\\\"", file.read())
                 with open(f"./discourse-export/{data['id']}_{slug}.json", "w") as file:
                     file.write(json)
     async with ClientSession() as session:
+        count = 0
         for issue in sorted([{"slug": slug, **data} for slug, data in links.items()], key=lambda x: x["idx"]):
-            await run_tasks([create_issue(issue, session, github_token)])
+            with open(f"./discourse-export/{issue['id']}_{issue['slug']}.json", "r") as file:
+                topic = load(file)
+            await gather(create_issue(topic, session, github_token))
+            if count < 19:
+                count += 1
+            else:
+                count = 0
+                await sleep(65)
 
 async def create_issue(
-    issue: Dict[str, Any], session: ClientSession, github_token: str
+    topic: Dict[str, Any], session: ClientSession, github_token: str
 ) -> str:
-    with open(f"./discourse-export/{issue['id']}_{issue['slug']}.json", "r") as file:
-        print(load(file))
-        """
-        async with session.post(
-            "https://api.github.com/repos/iris-garden/test-process/issues",
-            json={"title": topic.title, "body": topic.html, "labels": ["discourse-old"]},
-            headers={
-                "Accept": "application/vnd.github+json",
-                "Authorization": f"Bearer {github_token}",
-                "Content-Type": "application/json; charset=utf-8",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
-        ) as response:
-            return loads(await response.read())
-            """
-
-async def run_tasks(tasks):
-    result = []
-    while len(tasks) != 0:
-        if len(tasks) > 5:
-            result += await gather(*tasks[:4])
-            tasks = tasks[4:]
-            await sleep(2)
-        else:
-            result += await gather(*tasks)
-            tasks = []
-    return result
+    async with session.post(
+        "https://api.github.com/repos/iris-garden/test-process/issues",
+        json={"title": topic["title"], "body": topic["html"], "labels": ["discourse-old"]},
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {github_token}",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    ) as response:
+        loads(await response.read())
 
 if __name__ == "__main__":
     parser = ArgumentParser()
