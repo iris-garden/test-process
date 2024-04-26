@@ -58,8 +58,10 @@ async def create_issue(
             "X-GitHub-Api-Version": "2022-11-28",
         },
     ) as response:
-        print(loads(await response.read()))
-        print(response.headers)
+        response_json = loads(await response.read())
+        if response_json.get("message", None) is not None:
+            print(response_json["message"])
+            exit(1)
 
 if __name__ == "__main__":
     parser = ArgumentParser()
