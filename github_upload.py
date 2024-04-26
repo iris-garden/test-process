@@ -9,6 +9,7 @@ from asyncio import run, gather, sleep
 from os import listdir
 from os.path import isfile, join
 from re import findall, sub
+from shutil import move
 
 # constants
 POST_LINK_ID = "f4706281-cc60-4ff0-a0b6-b803683cc24b"
@@ -36,6 +37,7 @@ async def main(github_issue_number: int, github_token: str) -> None:
         for issue in sorted([{"slug": slug, **data} for slug, data in links.items()], key=lambda x: x["idx"]):
             with open(f"./discourse-export/{issue['id']}_{issue['slug']}.json", "r") as file:
                 topic = load(file)
+            move(f"./discourse-export/{issue['id']}_{issue['slug']}.json", f"./uploaded/{issue['id']}_{issue['slug']}.json")
             await gather(create_issue(topic, session, github_token))
             if count < 19:
                 count += 1
@@ -56,7 +58,8 @@ async def create_issue(
             "X-GitHub-Api-Version": "2022-11-28",
         },
     ) as response:
-        loads(await response.read())
+        print(loads(await response.read()))
+        print(response.headers)
 
 if __name__ == "__main__":
     parser = ArgumentParser()
