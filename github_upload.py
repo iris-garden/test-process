@@ -41,8 +41,10 @@ async def main(github_issue_number: int, github_token: str) -> None:
             with open(f"./discourse-export/{issue['id']}_{issue['slug']}.json", "r") as file:
                 topic = load(file)
             uploaded = await gather(create_issue(topic, session, github_token))
+            print(uploaded)
             while not uploaded:
                 uploaded = await gather(create_issue(topic, session, github_token))
+                print(uploaded)
             move(f"./discourse-export/{issue['id']}_{issue['slug']}.json", f"./uploaded/{issue['id']}_{issue['slug']}.json")
             if count < 19:
                 count += 1
@@ -51,6 +53,7 @@ async def main(github_issue_number: int, github_token: str) -> None:
                 print("Waiting for 2 minutes...")
                 await sleep(120)
 
+# TODO when this is running and retrying, it starts moving files without waiting for them to upload, why?
 async def create_issue(
     topic: Dict[str, Any], session: ClientSession, github_token: str
 ) -> bool:
@@ -72,7 +75,7 @@ async def create_issue(
                 print(f"Retry time is {retry_time - now()}; waiting for 1 minute...")
                 await sleep(60)
             return False
-        return True
+    return True
 
 if __name__ == "__main__":
     parser = ArgumentParser()
