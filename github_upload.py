@@ -37,8 +37,8 @@ async def main(github_issue_number: int, github_token: str) -> None:
         for issue in sorted([{"slug": slug, **data} for slug, data in links.items()], key=lambda x: x["idx"]):
             with open(f"./discourse-export/{issue['id']}_{issue['slug']}.json", "r") as file:
                 topic = load(file)
-            move(f"./discourse-export/{issue['id']}_{issue['slug']}.json", f"./uploaded/{issue['id']}_{issue['slug']}.json")
             await gather(create_issue(topic, session, github_token))
+            move(f"./discourse-export/{issue['id']}_{issue['slug']}.json", f"./uploaded/{issue['id']}_{issue['slug']}.json")
             if count < 19:
                 count += 1
             else:
