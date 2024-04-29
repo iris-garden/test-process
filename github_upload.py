@@ -40,7 +40,9 @@ async def main(github_issue_number: int, github_token: str) -> None:
         for issue in sorted([{"slug": slug, **data} for slug, data in links.items()], key=lambda x: x["idx"]):
             with open(f"./discourse-export/{issue['id']}_{issue['slug']}.json", "r") as file:
                 topic = load(file)
-            await gather(create_issue(topic, session, github_token))
+            uploaded = await gather(create_issue(topic, session, github_token))
+            while not uploaded:
+                uploaded = await gather(create_issue(topic, session, github_token))
             move(f"./discourse-export/{issue['id']}_{issue['slug']}.json", f"./uploaded/{issue['id']}_{issue['slug']}.json")
             if count < 19:
                 count += 1
@@ -51,7 +53,7 @@ async def main(github_issue_number: int, github_token: str) -> None:
 
 async def create_issue(
     topic: Dict[str, Any], session: ClientSession, github_token: str
-) -> str:
+) -> bool:
     async with session.post(
         "https://api.github.com/repos/iris-garden/test-process/issues",
         json={"title": topic["title"], "body": topic["html"], "labels": ["discourse-old"]},
@@ -63,11 +65,14 @@ async def create_issue(
         },
     ) as response:
         response_json = loads(await response.read())
+        print(response_json)
         if response_json.get("message", None) is not None:
             retry_time = fromtimestamp(int(response.headers.get("X-RateLimit-Reset")))
-            while retry_time > now():
-                print(f"Waiting for {retry_time - now()}...")
+            if retry_time > now():
+                print(f"Retry time is {retry_time - now()}; waiting for 1 minute...")
                 await sleep(60)
+            return False
+        return True
 
 if __name__ == "__main__":
     parser = ArgumentParser()
