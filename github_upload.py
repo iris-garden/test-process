@@ -10,6 +10,9 @@ from os import listdir
 from os.path import isfile, join
 from re import findall, sub
 from shutil import move
+from datetime import datetime
+now = datetime.now
+fromtimestamp = datetime.fromtimestamp
 
 # constants
 POST_LINK_ID = "f4706281-cc60-4ff0-a0b6-b803683cc24b"
@@ -43,7 +46,8 @@ async def main(github_issue_number: int, github_token: str) -> None:
                 count += 1
             else:
                 count = 0
-                await sleep(65)
+                print("Waiting for 2 minutes...")
+                await sleep(120)
 
 async def create_issue(
     topic: Dict[str, Any], session: ClientSession, github_token: str
@@ -60,8 +64,10 @@ async def create_issue(
     ) as response:
         response_json = loads(await response.read())
         if response_json.get("message", None) is not None:
-            print(response_json["message"])
-            exit(1)
+            retry_time = fromtimestamp(int(response.headers.get("X-RateLimit-Reset")))
+            while retry_time > now():
+                print(f"Waiting for {retry_time - now()}...")
+                await sleep(60)
 
 if __name__ == "__main__":
     parser = ArgumentParser()
