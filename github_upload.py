@@ -65,7 +65,6 @@ async def create_issue(
         },
     ) as response:
         response_json = loads(await response.read())
-        print(response_json)
         if response_json.get("message", None) is not None:
             retry_time = fromtimestamp(int(response.headers.get("X-RateLimit-Reset")))
             if retry_time > now():
