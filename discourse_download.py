@@ -1,6 +1,5 @@
 from argparse import ArgumentParser
-from bisect import insort
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from json import loads, dump
 from html.parser import HTMLParser
 from typing import Any, Callable, Dict, List, Tuple, TypeVar

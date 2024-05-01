@@ -1,9 +1,6 @@
 from argparse import ArgumentParser
-from bisect import insort
-from dataclasses import dataclass, replace
-from json import loads, dump, load
-from html.parser import HTMLParser
-from typing import Any, Callable, Dict, List, Tuple, TypeVar
+from json import loads, load
+from typing import Any, Dict
 from aiohttp import ClientSession
 from asyncio import run, gather, sleep
 from os import listdir
@@ -40,7 +37,7 @@ async def main(github_issue_number: int, github_token: str) -> None:
         for issue in sorted([{"slug": slug, **data} for slug, data in links.items()], key=lambda x: x["idx"]):
             with open(f"./discourse-export/{issue['id']}_{issue['slug']}.json", "r") as file:
                 topic = load(file)
-            uploaded = next(iter(await gather(create_issue(topic, session, github_token))))
+            uploaded = False
             while not uploaded:
                 uploaded = next(iter(await gather(create_issue(topic, session, github_token))))
             move(f"./discourse-export/{issue['id']}_{issue['slug']}.json", f"./uploaded/{issue['id']}_{issue['slug']}.json")
@@ -56,7 +53,7 @@ async def create_issue(
 ) -> bool:
     async with session.post(
         "https://api.github.com/repos/iris-garden/test-process/issues",
-        json={"title": topic["title"], "body": topic["html"], "labels": ["discourse-old"]},
+        json={"title": topic["title"], "body": topic["html"], "labels": ["discourse"]},
         headers={
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {github_token}",
