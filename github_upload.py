@@ -26,10 +26,10 @@ async def main(github_issue_number: int, github_token: str) -> None:
         for dest in data["dests"]:
             dest_data = links.get(dest, None)
             if dest_data is None:
-                print(f"broken link: {slug}->{dest} (https://github.com/iris-garden/test-process/issues/{github_issue_number + data['idx']})")
+                print(f"broken link: {slug}->{dest} (https://github.com/hail-is/hail/issues/{github_issue_number + data['idx']})")
             else:
                 with open(f"./discourse-export/{data['id']}_{slug}.json", "r") as file:
-                    json = sub(f'{POST_LINK_ID}/(.*?)"', f"https://github.com/iris-garden/test-process/issues/{github_issue_number + dest_data['idx']}\\\"", file.read())
+                    json = sub(f'{POST_LINK_ID}/(.*?)"', f"https://github.com/hail-is/hail/issues/{github_issue_number + dest_data['idx']}\\\"", file.read())
                 with open(f"./discourse-export/{data['id']}_{slug}.json", "w") as file:
                     file.write(json)
     async with ClientSession() as session:
@@ -52,7 +52,7 @@ async def create_issue(
     topic: Dict[str, Any], session: ClientSession, github_token: str
 ) -> bool:
     async with session.post(
-        "https://api.github.com/repos/iris-garden/test-process/issues",
+        "https://api.github.com/repos/hail-is/hail/issues",
         json={"title": topic["title"], "body": topic["html"], "labels": ["discourse"]},
         headers={
             "Accept": "application/vnd.github+json",
